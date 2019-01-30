@@ -98,7 +98,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = 0.0
         self.yspeed = 0.0
 
-    def update(self, a, d):
+    def update(self, a, d, w):
         self.rect.x += int(self.speed)
         self.rect.y -= int(self.yspeed)
         if -0.1 < self.speed < 0.1:
@@ -121,11 +121,17 @@ class Player(pygame.sprite.Sprite):
         if not pygame.sprite.spritecollideany(self, blocks):
             if self.yspeed == 0:
                 self.yspeed = -10.0
+            elif -1 < self.yspeed < 1 and self.yspeed != 0:
+                self.yspeed = -1
+            elif self.yspeed > 0:
+                self.yspeed /= 1.05
             else:
-                self.yspeed *= 1.01
-                print(int(self.yspeed))
+                self.yspeed *= 1.05
         else:
-            self.yspeed = 0
+            if w:
+                self.yspeed = 20.0
+            else:
+                self.yspeed = 0
 
 
 class Block(pygame.sprite.Sprite):
@@ -163,7 +169,7 @@ clock = pygame.time.Clock()
 running = True
 fps = 60
 images = {'block': load_image("Block.png"), 'back': load_image("Block_B.png")}
-a = d = False
+a = d = w = False
 all_sprites = pygame.sprite.Group()
 blocks = pygame.sprite.Group()
 back = pygame.sprite.Group()
@@ -184,15 +190,19 @@ while running:
             if event.key == 100:
                 d = True
                 a = False
+            if event.key == 119:
+                w = True
         if event.type == pygame.KEYUP:
             if event.key == 97:
                 a = False
             if event.key == 100:
                 d = False
+            if event.key == 119:
+                w = False
 
     screen.fill((0, 100, 0))
     for i in player:
-        i.update(a, d)
+        i.update(a, d, w)
         camera.update(i)
     for sprite in all_sprites:
         camera.apply(sprite)
