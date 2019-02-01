@@ -99,8 +99,6 @@ class Player(pygame.sprite.Sprite):
         self.yspeed = 0.0
 
     def update(self, a, d, w):
-        self.rect.x += int(self.speed)
-        self.rect.y -= int(self.yspeed)
         if -0.1 < self.speed < 0.1:
             self.speed = 0
         if a:
@@ -128,10 +126,23 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.yspeed *= 1.05
         else:
-            if w:
-                self.yspeed = 20.0
-            else:
-                self.yspeed = 0
+            for spr in pygame.sprite.spritecollide(self, blocks, False):
+                if spr.rect.y + 50 > self.rect.y + 50 > spr.rect.y:
+                    self.rect.y = spr.rect.y - 49
+                    self.yspeed = 0
+                if w:
+                    self.yspeed = 20.0
+                if spr.rect.y + 50 > self.rect.y > spr.rect.y:
+                    self.rect.y = spr.rect.y + 51
+                    self.yspeed = 0
+                if (spr.rect.x + 50 > self.rect.x + 50 > spr.rect.x + 35) and not (
+                        spr.rect.y < self.rect.y + 50 < spr.rect.y + 5):
+                    self.rect.x -= 1500
+                    self.speed = 0
+                    self.yspeed = 0
+            print(self.rect.y)
+        self.rect.x += int(self.speed)
+        self.rect.y -= int(self.yspeed)
 
 
 class Block(pygame.sprite.Sprite):
@@ -199,7 +210,6 @@ while running:
                 d = False
             if event.key == 119:
                 w = False
-
     screen.fill((0, 100, 0))
     for i in player:
         i.update(a, d, w)
