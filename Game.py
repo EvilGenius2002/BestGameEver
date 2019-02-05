@@ -97,52 +97,70 @@ class Player(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = tile_width * pos[0], tile_height * pos[1]
         self.speed = 0.0
         self.yspeed = 0.0
+        # Basic variables:
+        self.fall_modifier = 0.5
+        self.max_speed = 12.0
+        self.jump_speed = 20.0
+        self.acceleration = 0.5
 
-    def update(self, a, d, w):
+    def fall(self):
+        if self.yspeed == 0:
+            self.yspeed = -10.0
+        else:
+            self.yspeed -= self.fall_modifier
+
+    def collide(self):
+        if not pygame.sprite.spritecollideany(self, blocks):
+            self.fall()
+        else:
+            for spr in pygame.sprite.spritecollide(self, blocks, False):
+                if spr.rect.x < self.rect.x + 50 < spr.rect.x + 25 and not (spr.rect.y < self.rect.y + 50 <
+                                                                            spr.rect.y + 25 or spr.rect.y + 55
+                                                                            > self.rect.y > spr.rect.y + 35):
+                    self.rect.x = spr.rect.x - 50
+                    self.speed = 0
+                elif spr.rect.x + 50 >= self.rect.x > spr.rect.x + 25 and not (spr.rect.y < self.rect.y + 50 <
+                                                                               spr.rect.y + 25 or spr.rect.y + 55
+                                                                               > self.rect.y > spr.rect.y + 35):
+                    self.rect.x = spr.rect.x + 50
+                    self.speed = 0
+                else:
+                    if spr.rect.y + 50 > self.rect.y + 50 > spr.rect.y:
+                        self.rect.y = spr.rect.y - 49
+                        if self.yspeed <= 0:
+                            self.yspeed = 0
+                    if spr.rect.y + 50 > self.rect.y > spr.rect.y:
+                        self.rect.y = spr.rect.y + 51
+                        self.yspeed = 0
+
+    def change_speed(self):
+        global w
+        if w:
+            self.yspeed = self.jump_speed
+            w = False
         if -0.1 < self.speed < 0.1:
             self.speed = 0
         if a:
-            if -12.0 < self.speed <= 0.0:
+            if -self.max_speed < self.speed <= 0.0:
                 self.speed -= 0.1
             elif self.speed > 0.0:
-                self.speed -= 0.5
+                self.speed -= self.acceleration
         elif d:
-            if 0.0 <= self.speed < 12.0:
+            if 0.0 <= self.speed < self.max_speed:
                 self.speed += 0.1
             elif self.speed < 0.0:
-                self.speed += 0.5
+                self.speed += self.acceleration
         else:
             if self.speed > 0.0:
-                self.speed -= 0.5
+                self.speed -= self.acceleration
             elif self.speed < 0.0:
-                self.speed += 0.5
-        if not pygame.sprite.spritecollideany(self, blocks):
-            if self.yspeed == 0:
-                self.yspeed = -10.0
-            elif -1 < self.yspeed < 1 and self.yspeed != 0:
-                self.yspeed = -1
-            elif self.yspeed > 0:
-                self.yspeed /= 1.05
-            else:
-                self.yspeed *= 1.05
-        else:
-            for spr in pygame.sprite.spritecollide(self, blocks, False):
-                if spr.rect.y + 50 > self.rect.y + 50 > spr.rect.y:
-                    self.rect.y = spr.rect.y - 49
-                    self.yspeed = 0
-                if w:
-                    self.yspeed = 20.0
-                if spr.rect.y + 50 > self.rect.y > spr.rect.y:
-                    self.rect.y = spr.rect.y + 51
-                    self.yspeed = 0
-                if (spr.rect.x + 50 > self.rect.x + 50 > spr.rect.x + 35) and not (
-                        spr.rect.y < self.rect.y + 50 < spr.rect.y + 5):
-                    self.rect.x -= 1500
-                    self.speed = 0
-                    self.yspeed = 0
-            print(self.rect.y)
+                self.speed += self.acceleration
+
+    def update(self):
         self.rect.x += int(self.speed)
         self.rect.y -= int(self.yspeed)
+        self.change_speed()
+        self.collide()
 
 
 class Block(pygame.sprite.Sprite):
@@ -208,11 +226,9 @@ while running:
                 a = False
             if event.key == 100:
                 d = False
-            if event.key == 119:
-                w = False
     screen.fill((0, 100, 0))
     for i in player:
-        i.update(a, d, w)
+        i.update()
         camera.update(i)
     for sprite in all_sprites:
         camera.apply(sprite)
