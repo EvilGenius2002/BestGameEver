@@ -92,16 +92,18 @@ def start_screen():
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__(all_sprites, player)
-        self.image = load_image("Player1.png")
+        self.image = load_image("Player1.png", -1)
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = tile_width * pos[0], tile_height * pos[1]
-        self.speed = 0.0
-        self.yspeed = 0.0
+        self.speed = self.yspeed = self.prevspeed = 0.0
         # Basic variables:
+        self.prevmove = 1
         self.fall_modifier = 0.5
         self.max_speed = 12.0
-        self.jump_speed = 20.0
+        self.jump_speed = 15.0
         self.acceleration = 0.5
+        # Conditions:
+        self.flying = self.climbing_r = self.climbing_l = self.sprinting = self.facing_r = self.climbing_up = False
 
     def fall(self):
         if self.yspeed == 0:
@@ -111,56 +113,100 @@ class Player(pygame.sprite.Sprite):
 
     def collide(self):
         if not pygame.sprite.spritecollideany(self, blocks):
+            self.flying = True
             self.fall()
         else:
+            climb_r, climb_l = self.climbing_r, self.climbing_l
+            self.climbing_r = self.climbing_l = False
+            print(self.climbing_r, self.climbing_l)
             for spr in pygame.sprite.spritecollide(self, blocks, False):
-                if spr.rect.x < self.rect.x + 50 < spr.rect.x + 25 and not (spr.rect.y < self.rect.y + 50 <
-                                                                            spr.rect.y + 25 or spr.rect.y + 55
-                                                                            > self.rect.y > spr.rect.y + 35):
-                    self.rect.x = spr.rect.x - 50
-                    self.speed = 0
-                elif spr.rect.x + 50 >= self.rect.x > spr.rect.x + 25 and not (spr.rect.y < self.rect.y + 50 <
-                                                                               spr.rect.y + 25 or spr.rect.y + 55
-                                                                               > self.rect.y > spr.rect.y + 35):
-                    self.rect.x = spr.rect.x + 50
-                    self.speed = 0
-                else:
+                if not (
+                        spr.rect.y < self.rect.y + 50 < spr.rect.y + 25 or spr.rect.y + 55
+                        > self.rect.y > spr.rect.y + 35):
+                    if spr.rect.x < self.rect.x + 50 < spr.rect.x + 25:
+                        self.rect.x = spr.rect.x - 49
+                        self.speed = 0
+                        self.flying = False
+                        self.climbing_r = True
+                    elif spr.rect.x + 50 >= self.rect.x > spr.rect.x + 25:
+                        self.rect.x = spr.rect.x + 49
+                        self.speed = 0
+                        self.flying = False
+                        self.climbing_l = True
+                elif not (
+                        spr.rect.x + 45 < self.rect.x < spr.rect.x + 50
+                        or spr.rect.x < self.rect.x + 50 < spr.rect.x + 5):
                     if spr.rect.y + 50 > self.rect.y + 50 > spr.rect.y:
                         self.rect.y = spr.rect.y - 49
                         if self.yspeed <= 0:
                             self.yspeed = 0
+                            self.flying = False
                     if spr.rect.y + 50 > self.rect.y > spr.rect.y:
-                        self.rect.y = spr.rect.y + 51
+                        self.rect.y = spr.rect.y + 50
                         self.yspeed = 0
+            if climb_r and not self.climbing_r:
+                self.rect.x += 50
+                self.rect.y -= 35
+                self.climbing_up = True
+            elif climb_l and not self.climbing_l:
+                self.rect.x -= 50
+                self.rect.y -= 35
+                self.climbing_up = True
 
     def change_speed(self):
         global w
-        if w:
-            self.yspeed = self.jump_speed
+        if self.climbing_l or self.climbing_r:
+            self.yspeed = 0
+            if w:
+                self.rect.y -= 2
+            elif s:
+                self.rect.y += 2
+        else:
+            if w and not self.flying and not self.climbing_up:
+                self.yspeed = self.jump_speed
             w = False
+            self.climbing_up = False
+
         if -0.1 < self.speed < 0.1:
             self.speed = 0
         if a:
-            if -self.max_speed < self.speed <= 0.0:
-                self.speed -= 0.1
-            elif self.speed > 0.0:
-                self.speed -= self.acceleration
+            if self.climbing_r:
+                self.climbing_r = False
+                self.rect.x -= 2
+            else:
+                if -self.max_speed < self.speed <= 0.0:
+                    self.speed -= 0.1
+                elif self.speed > 0.0:
+                    self.speed -= self.acceleration
         elif d:
-            if 0.0 <= self.speed < self.max_speed:
-                self.speed += 0.1
-            elif self.speed < 0.0:
-                self.speed += self.acceleration
+            if self.climbing_l:
+                self.climbing_l = False
+                self.rect.x += 2
+            else:
+                if 0.0 <= self.speed < self.max_speed:
+                    self.speed += 0.1
+                elif self.speed < 0.0:
+                    self.speed += self.acceleration
         else:
             if self.speed > 0.0:
                 self.speed -= self.acceleration
             elif self.speed < 0.0:
                 self.speed += self.acceleration
-
-    def update(self):
         self.rect.x += int(self.speed)
         self.rect.y -= int(self.yspeed)
+
+    def change_image(self):
+        if int(self.speed) != 0 and int(self.prevspeed) == 0:
+            if not ((self.prevmove > 0 and self.speed > 0) or (self.prevmove < 0 and self.speed < 0)):
+                self.image = pygame.transform.flip(self.image, True, False)
+        elif int(self.speed) == 0 and int(self.prevspeed) != 0:
+            self.prevmove = self.prevspeed
+        self.prevspeed = self.speed
+
+    def update(self):
         self.change_speed()
         self.collide()
+        self.change_image()
 
 
 class Block(pygame.sprite.Sprite):
@@ -198,7 +244,8 @@ clock = pygame.time.Clock()
 running = True
 fps = 60
 images = {'block': load_image("Block.png"), 'back': load_image("Block_B.png")}
-a = d = w = False
+# Keys:
+a = d = w = s = False
 all_sprites = pygame.sprite.Group()
 blocks = pygame.sprite.Group()
 back = pygame.sprite.Group()
@@ -210,6 +257,15 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        if event.type == pygame.KEYUP:
+            if event.key == 97:
+                a = False
+            if event.key == 100:
+                d = False
+            if event.key == 119:
+                w = False
+            if event.key == 115:
+                s = False
         if event.type == pygame.KEYDOWN:
             if event.key == 293:
                 running = False
@@ -221,18 +277,17 @@ while running:
                 a = False
             if event.key == 119:
                 w = True
-        if event.type == pygame.KEYUP:
-            if event.key == 97:
-                a = False
-            if event.key == 100:
-                d = False
-    screen.fill((0, 100, 0))
+                s = False
+            if event.key == 115:
+                s = True
+                w = False
+    screen.fill((0, 0, 0))
     for i in player:
         i.update()
         camera.update(i)
     for sprite in all_sprites:
         camera.apply(sprite)
-    back.draw(screen)
+    # back.draw(screen)
     blocks.draw(screen)
     player.draw(screen)
     clock.tick(fps)
